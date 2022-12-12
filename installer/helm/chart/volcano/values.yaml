@@ -1,8 +1,8 @@
 basic:
-  image_tag_version: "latest"
-  controller_image_name: "volcanosh/vc-controller-manager"
-  scheduler_image_name: "474375891613.dkr.ecr.us-west-2.amazonaws.com/volcano"
-  admission_image_name: "volcanosh/vc-webhook-manager"
+  image_tag_version: "sha-7e1b436"
+  controller_image_name: "public.ecr.aws/n9u9x7z1/volcano-controller-manager"
+  scheduler_image_name: "public.ecr.aws/n9u9x7z1/volcano-scheduler"
+  admission_image_name: "public.ecr.aws/n9u9x7z1/volcano-webhook-manager"
   admission_secret_name: "volcano-admission-secret"
   admission_config_file: "config/volcano-admission.conf"
   scheduler_config_file: "config/volcano-scheduler.conf"
