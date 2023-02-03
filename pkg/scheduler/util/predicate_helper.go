@@ -37,7 +37,7 @@ func (ph *predicateHelper) PredicateNodes(task *api.TaskInfo, nodes []*api.NodeI
 	processedNodes := int32(0)
 
 	taskGroupid := taskGroupID(task)
-	nodeErrorCache, taskFailedBefore := ph.taskPredicateErrorCache[taskGroupid]
+	nodeErrorCache, _ := ph.taskPredicateErrorCache[taskGroupid]
 	if nodeErrorCache == nil {
 		nodeErrorCache = map[string]error{}
 	}
@@ -55,18 +55,20 @@ func (ph *predicateHelper) PredicateNodes(task *api.TaskInfo, nodes []*api.NodeI
 
 		// Check if the task had "predicate" failure before.
 		// And then check if the task failed to predict on this node before.
-		if taskFailedBefore {
-			errorLock.RLock()
-			errC, ok := nodeErrorCache[node.Name]
-			errorLock.RUnlock()
-
-			if ok {
-				errorLock.Lock()
-				fe.SetNodeError(node.Name, errC)
-				errorLock.Unlock()
-				return
-			}
-		}
+		//if taskFailedBefore {
+		//	errorLock.RLock()
+		//	errC, ok := nodeErrorCache[node.Name]
+		//	errorLock.RUnlock()
+		//
+		//	if ok {
+		//		errorLock.Lock()
+		//		fe.SetNodeError(node.Name, errC)
+		//		errorLock.Unlock()
+		//		klog.V(4).Infof("Exit1 Considering Task <%v/%v> on node <%v>: <%v> vs. <%v>",
+		//			task.Namespace, task.Name, node.Name, task.Resreq, node.Idle)
+		//		return
+		//	}
+		//}
 
 		// TODO (k82cn): Enable eCache for performance improvement.
 		if err := fn(task, node); err != nil {
@@ -77,6 +79,8 @@ func (ph *predicateHelper) PredicateNodes(task *api.TaskInfo, nodes []*api.NodeI
 			ph.taskPredicateErrorCache[taskGroupid] = nodeErrorCache
 			fe.SetNodeError(node.Name, err)
 			errorLock.Unlock()
+			klog.V(4).Infof("Exit2 Considering Task <%v/%v> on node <%v>: <%v> vs. <%v>",
+				task.Namespace, task.Name, node.Name, task.Resreq, node.Idle)
 			return
 		}
 
@@ -85,8 +89,12 @@ func (ph *predicateHelper) PredicateNodes(task *api.TaskInfo, nodes []*api.NodeI
 		if length > numNodesToFind {
 			cancel()
 			atomic.AddInt32(&numFoundNodes, -1)
+			klog.V(4).Infof("Exit3 Considering Task <%v/%v> on node <%v>: <%v> vs. <%v>",
+				task.Namespace, task.Name, node.Name, task.Resreq, node.Idle)
 		} else {
 			predicateNodes[length-1] = node
+			klog.V(4).Infof("Exit4 Considering Task <%v/%v> on node <%v>: <%v> vs. <%v>",
+				task.Namespace, task.Name, node.Name, task.Resreq, node.Idle)
 		}
 	}
 
