@@ -661,12 +661,10 @@ func (ji *JobInfo) TaskSchedulingReason(tid TaskID) (reason string, msg string) 
 		return PodReasonSchedulable, msg
 	case Pending:
 		if fe := ji.NodesFitErrors[tid]; fe != nil {
-			// Pod is not schedulable on currently available nodes. It's okay to set 'Unschedulable' as the reason to trigger the cluster autoscaler.
-			klog.V(4).Infof("job %s/%s task %s node fit error: %s", ji.Name, ji.Namespace, taskInfo.Name, fe.Error())
+			// Pod is not schedulable on currently available nodes. We want to set 'Unschedulable' as the reason to trigger the cluster autoscaler.
 			return PodReasonUnschedulable, fmt.Sprintf("fiterr: %s", fe.Error())
 		}
 		// Pod hasn't cleared the enqueue phase yet. Use the 'Ineligible' status to bypass the cluster autoscaler.
-		klog.V(4).Infof("job %s/%s task %s eligibility error", ji.Name, ji.Namespace, taskInfo.Name)
 		return PodReasonIneligible, "pod is not yet eligible to schedule"
 	default:
 		return status.String(), ji.JobFitErrors

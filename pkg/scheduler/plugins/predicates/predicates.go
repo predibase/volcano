@@ -39,8 +39,6 @@ import (
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/tainttoleration"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/volumezone"
 
-	naff "k8s.io/component-helpers/scheduling/corev1/nodeaffinity"
-
 	"volcano.sh/volcano/pkg/scheduler/api"
 	"volcano.sh/volcano/pkg/scheduler/framework"
 	"volcano.sh/volcano/pkg/scheduler/plugins/util"
@@ -394,13 +392,6 @@ func (pp *predicatesPlugin) OnSessionOpen(ssn *framework.Session) {
 
 			// Check NodeAffinity
 			status = nodeAffinityFilter.Filter(context.TODO(), state, task.Pod, nodeInfo)
-
-			klog.V(4).Infof("Filtering task %s/%s on node <%s> with node selector %+v tolerations %+v affinity %+v",
-				task.Namespace, task.Name, node.Name, pod.Spec.NodeSelector, pod.Spec.Tolerations, pod.Spec.Affinity)
-
-			klog.V(4).Infof("Filtering task %s/%s on node <%s> with reqnodeaffinity %+v",
-				task.Namespace, task.Name, node.Name, naff.GetRequiredNodeAffinity(task.Pod))
-
 			if !status.IsSuccess() {
 				return false, fmt.Errorf("plugin %s predicates failed %s", nodeaffinity.Name, status.Message())
 			}

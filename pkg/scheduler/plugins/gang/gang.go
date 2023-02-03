@@ -206,13 +206,11 @@ func (gp *gangPlugin) OnSessionClose(ssn *framework.Session) {
 			for _, taskInfo := range job.TaskStatusIndex[api.Allocated] {
 				fitError := job.NodesFitErrors[taskInfo.UID]
 				if fitError != nil {
-					klog.V(4).Infof("job %s/%s gang found nfe: %s", job.Name, job.Namespace, fitError)
 					continue
 				}
 
 				fitError = api.NewFitErrors()
 				job.NodesFitErrors[taskInfo.UID] = fitError
-				klog.V(4).Infof("job %s/%s gang adding nfe: %s", job.Name, job.Namespace, msg)
 				fitError.SetError(msg)
 			}
 		} else {
