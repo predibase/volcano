@@ -251,7 +251,7 @@ func podConditionHaveUpdate(status *v1.PodStatus, condition *v1.PodCondition) bo
 
 // UpdatePodCondition will Update pod with podCondition
 func (su *defaultStatusUpdater) UpdatePodCondition(pod *v1.Pod, condition *v1.PodCondition) (*v1.Pod, error) {
-	klog.V(3).Infof("Updating pod condition for %s/%s to (%s==%s)", pod.Namespace, pod.Name, condition.Type, condition.Status)
+	klog.V(3).Infof("Updating pod condition for %s/%s to (%s==%s), reason %s, msg %s", pod.Namespace, pod.Name, condition.Type, condition.Status, condition.Reason, condition.Message)
 	if podutil.UpdatePodCondition(&pod.Status, condition) {
 		return su.kubeclient.CoreV1().Pods(pod.Namespace).UpdateStatus(context.TODO(), pod, metav1.UpdateOptions{})
 	}
@@ -851,6 +851,8 @@ func (sc *SchedulerCache) taskUnschedulable(task *schedulingapi.TaskInfo, reason
 		Reason:  reason, // Add more reasons in order to distinguish more specific scenario of pending tasks
 		Message: message,
 	}
+
+	klog.V(4).Infof("task unscheduleable %s/%s, reason: %s message: %s", pod.Namespace, pod.Name, reason, message)
 
 	if podConditionHaveUpdate(&pod.Status, condition) {
 		pod = pod.DeepCopy()
