@@ -177,10 +177,13 @@ func (alloc *Action) Execute(ssn *framework.Session) {
 				break
 			}
 
-			predicateNodes, fitErrors := ph.PredicateNodes(task, allNodes, predicateFn, true)
+			predicateNodes, fitErrors := ph.PredicateNodes(task, allNodes, predicateFn, false)
 			if len(predicateNodes) == 0 {
+				klog.V(3).Infof("PredicateNodes for task %s/%s found: %v", task.Namespace, task.Name, fitErrors.Error())
 				job.NodesFitErrors[task.UID] = fitErrors
-				break
+				// Don't break the loop here. We need to perform this check for all tasks to ensure they have proper NodeFitErrors set (if applicable)
+				// so that the right pod condition is set for the cluster autoscaler.
+				continue
 			}
 
 			var candidateNodes []*api.NodeInfo
