@@ -228,9 +228,10 @@ func jobStatus(ssn *Session, jobInfo *api.JobInfo) scheduling.PodGroupStatus {
 			}
 		}
 
-		// If there're enough allocated resource, it's running
-		if int32(allocated) >= jobInfo.PodGroup.Spec.MinMember {
+		if int32(len(jobInfo.TaskStatusIndex[api.Running])) >= jobInfo.PodGroup.Spec.MinMember {
 			status.Phase = scheduling.PodGroupRunning
+		} else if int32(allocated) >= jobInfo.PodGroup.Spec.MinMember {
+			status.Phase = scheduling.PodGroupAllocated
 		} else if jobInfo.PodGroup.Status.Phase != scheduling.PodGroupInqueue {
 			status.Phase = scheduling.PodGroupPending
 		}
