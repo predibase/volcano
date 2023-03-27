@@ -17,9 +17,9 @@
 package allocate
 
 import (
-	"time"
-
+	"fmt"
 	"k8s.io/klog"
+	"time"
 
 	"volcano.sh/apis/pkg/apis/scheduling"
 	"volcano.sh/volcano/pkg/scheduler/api"
@@ -208,7 +208,35 @@ func (alloc *Action) Execute(ssn *framework.Session) {
 				break
 			}
 
-			predicateNodes, fitErrors := ph.PredicateNodes(task, allNodes, predicateFn)
+			existingNodeBinding := task.NodeName
+			if existingNodeBinding == "" {
+				existingNodeBinding = task.Pod.Spec.NodeName
+			}
+
+			var predicateNodes []*api.NodeInfo
+			var fitErrors *api.FitErrors
+
+			if existingNodeBinding != "" {
+				// Prefer to keep any existing node bindings stable to avoid confusing Karpenter.
+				klog.V(3).Infof("Task %s/%s already had binding to node %s", task.Namespace, task.Name, existingNodeBinding)
+				predicateNodes, _ = ph.PredicateNodes(task, allNodes, func(ti *api.TaskInfo, ni *api.NodeInfo) error {
+					if ni.Name != existingNodeBinding {
+						return fmt.Errorf("node %s does not match existing binding %s", ni.Name, existingNodeBinding)
+					}
+
+					return predicateFn(ti, ni)
+				})
+
+				if len(predicateNodes) == 0 {
+					klog.V(3).Infof("Existing binding of task %s/%s to node %s is no longer valid. Falling back to check other nodes",
+						task.Namespace, task.Name, existingNodeBinding)
+					predicateNodes, fitErrors = ph.PredicateNodes(task, allNodes, predicateFn)
+				}
+			} else {
+				// If no existing binding exists, check every node as usual.
+				predicateNodes, fitErrors = ph.PredicateNodes(task, allNodes, predicateFn)
+			}
+
 			if len(predicateNodes) == 0 {
 				klog.V(3).Infof("PredicateNodes for task %s/%s found: %v", task.Namespace, task.Name, fitErrors.Error())
 				job.NodesFitErrors[task.UID] = fitErrors
@@ -288,3 +316,13 @@ func (alloc *Action) Execute(ssn *framework.Session) {
 }
 
 func (alloc *Action) UnInitialize() {}
+
+func findNodeByName(nodeName string, nodeList []*api.NodeInfo) (*api.NodeInfo, error) {
+	for _, nodeInfo := range nodeList {
+		if nodeInfo.Name == nodeName {
+			return nodeInfo, nil
+		}
+	}
+
+	return nil, fmt.Errorf("no matching node found for name %s", nodeName)
+}
