@@ -316,13 +316,3 @@ func (alloc *Action) Execute(ssn *framework.Session) {
 }
 
 func (alloc *Action) UnInitialize() {}
-
-func findNodeByName(nodeName string, nodeList []*api.NodeInfo) (*api.NodeInfo, error) {
-	for _, nodeInfo := range nodeList {
-		if nodeInfo.Name == nodeName {
-			return nodeInfo, nil
-		}
-	}
-
-	return nil, fmt.Errorf("no matching node found for name %s", nodeName)
-}
