@@ -82,7 +82,7 @@ spec:
       labels:
         app: volcano-admission
     spec:
-      serviceAccount: {{ .Release.Name }}-admission
+      serviceAccountName: {{ .Release.Name }}-admission
       priorityClassName: system-cluster-critical
       {{- if .Values.basic.image_pull_secret }}
       imagePullSecrets:

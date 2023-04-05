@@ -108,7 +108,7 @@ spec:
       labels:
         app: volcano-scheduler
     spec:
-      serviceAccount: {{ .Release.Name }}-scheduler
+      serviceAccountName: {{ .Release.Name }}-scheduler
       priorityClassName: system-cluster-critical
       {{- if .Values.basic.image_pull_secret }}
       imagePullSecrets:
