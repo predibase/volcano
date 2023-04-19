@@ -651,7 +651,6 @@ func (ji *JobInfo) TaskSchedulingReason(tid TaskID) (reason string, msg string) 
 		ctx = *taskInfo.LastTransaction
 	}
 
-	msg = ji.JobFitErrors
 	switch status := ctx.Status; status {
 	case Allocated, Pipelined:
 		// Pod is schedulable
@@ -662,13 +661,13 @@ func (ji *JobInfo) TaskSchedulingReason(tid TaskID) (reason string, msg string) 
 		return PodReasonSchedulable, msg
 	case Pending:
 		if fe := ji.NodesFitErrors[tid]; fe != nil {
-			// Pod is not schedulable
-			return PodReasonUnschedulable, fe.Error()
+			// Pod is not schedulable on currently available nodes. We want to set 'Unschedulable' as the reason to trigger the cluster autoscaler.
+			return PodReasonUnschedulable, fmt.Sprintf("fiterr: %s", fe.Error())
 		}
-		// Pod is not scheduled yet, keep UNSCHEDULABLE as the reason to support cluster autoscaler
-		return PodReasonUnschedulable, msg
+		// Pod hasn't cleared the enqueue phase yet. Use the 'Ineligible' status to bypass the cluster autoscaler.
+		return PodReasonIneligible, "pod is not yet eligible to schedule"
 	default:
-		return status.String(), msg
+		return status.String(), ji.JobFitErrors
 	}
 }
 

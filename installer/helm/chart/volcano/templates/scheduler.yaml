@@ -125,7 +125,7 @@ spec:
             - --scheduler-conf=/volcano.scheduler/{{base .Values.basic.scheduler_config_file}}
             - --enable-healthz=true
             - --enable-metrics=true
-            - -v=3
+            - -v=5
             - 2>&1
           imagePullPolicy: {{ .Values.basic.image_pull_policy }}
           volumeMounts:
