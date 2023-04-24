@@ -19,9 +19,6 @@ package validate
 import (
 	"context"
 	"fmt"
-	"strconv"
-	"strings"
-
 	admissionv1 "k8s.io/api/admission/v1"
 	whv1 "k8s.io/api/admissionregistration/v1"
 	v1 "k8s.io/api/core/v1"
@@ -29,6 +26,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/klog"
+	"strconv"
+	"strings"
 
 	"volcano.sh/apis/pkg/apis/helpers"
 	vcv1beta1 "volcano.sh/apis/pkg/apis/scheduling/v1beta1"
@@ -148,9 +147,15 @@ func validatePod(pod *v1.Pod, reviewResponse *admissionv1.AdmissionResponse) str
 func checkPG(pod *v1.Pod, pgName string, isVCJob bool) error {
 	_, err := config.VolcanoClient.SchedulingV1beta1().PodGroups(pod.Namespace).Get(context.TODO(), pgName, metav1.GetOptions{})
 	if err != nil {
+		if apierrors.IsUnauthorized(err) {
+			klog.Warning("Unable to retrieve PodGroup -- unauthorized. Assuming PodGroup is valid...")
+			return nil
+		}
+
 		if isVCJob || (!isVCJob && !apierrors.IsNotFound(err)) {
 			return fmt.Errorf("failed to get PodGroup for pod <%s/%s>: %v", pod.Namespace, pod.Name, err)
 		}
+
 		return nil
 	}
 	return nil
@@ -172,6 +177,11 @@ func checkQueueState(queueName string) error {
 	}
 	queue, err := config.VolcanoClient.SchedulingV1beta1().Queues().Get(context.TODO(), queueName, metav1.GetOptions{})
 	if err != nil {
+		if apierrors.IsUnauthorized(err) {
+			klog.Warning("Unable to retrieve PodGroup -- unauthorized. Assuming PodGroup is valid...")
+			return nil
+		}
+
 		return fmt.Errorf(" unable to find job queue: %v;", err)
 	} else if queue.Status.State != vcv1beta1.QueueStateOpen {
 		return fmt.Errorf(" can only submit job to queue with state `Open`, "+
