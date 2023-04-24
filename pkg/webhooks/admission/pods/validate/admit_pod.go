@@ -178,7 +178,7 @@ func checkQueueState(queueName string) error {
 	queue, err := config.VolcanoClient.SchedulingV1beta1().Queues().Get(context.TODO(), queueName, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsUnauthorized(err) {
-			klog.Warning("Unable to retrieve PodGroup -- unauthorized. Assuming PodGroup is valid...")
+			klog.Warning("Unable to retrieve Queue state -- unauthorized. Assuming Queue is valid...")
 			return nil
 		}
 
