@@ -14,6 +14,7 @@ metadata:
   namespace: {{ .Release.Namespace }}
   annotations:
     "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
@@ -21,6 +22,7 @@ metadata:
   name: {{ .Release.Name }}-admission
   annotations:
     "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
 rules:
   - apiGroups: [""]
     resources: ["configmaps"]
@@ -55,6 +57,7 @@ metadata:
   name: {{ .Release.Name }}-admission-role
   annotations:
     "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
 subjects:
   - kind: ServiceAccount
     name: {{ .Release.Name }}-admission
