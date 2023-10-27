@@ -1,5 +1,5 @@
 basic:
-  image_tag_version: "latest"
+  image_tag_version: "b8e2018f3"
   controller_image_name: "public.ecr.aws/n9u9x7z1/volcano-controller-manager"
   scheduler_image_name: "public.ecr.aws/n9u9x7z1/volcano-scheduler"
   admission_image_name: "public.ecr.aws/n9u9x7z1/volcano-webhook-manager"
