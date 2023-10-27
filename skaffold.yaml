@@ -1,0 +1,25 @@
+apiVersion: skaffold/v2beta28
+kind: Config
+
+metadata:
+  name: docker
+
+profiles:
+  # skaffold build -p volcano --default-repo=public.ecr.aws/n9u9x7z1
+  - name: volcano
+    build:
+      artifacts:
+        - image: volcano-scheduler
+          docker:
+            dockerfile: installer/dockerfile/scheduler/Dockerfile
+        - image: volcano-webhook-manager
+          docker:
+            dockerfile: installer/dockerfile/webhook-manager/Dockerfile
+        - image: volcano-controller-manager
+          docker:
+            dockerfile: installer/dockerfile/controller-manager/Dockerfile
+      tagPolicy:
+        gitCommit:
+          variant: AbbrevCommitSha
+          ignoreChanges: true
+      platforms: ["linux/amd64"]

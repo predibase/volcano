@@ -18,9 +18,12 @@ const (
 
 // These are reasons for a pod's transition to a condition.
 const (
+	// PodReasonIneligible reason means that the pod is not currently eligible for scheduling on a node,
+	// for example due to queue constraints.
+	PodReasonIneligible = "Ineligible"
 	// PodReasonUnschedulable reason in PodScheduled PodCondition means that the scheduler
 	// can't schedule the pod right now, for example due to insufficient resources in the cluster.
-	// It can also mean that the scheduler skips scheduling the pod which left the pod `Undetermined`,
+	// It can also mean that the scheduler skips scheduling the pod which left the pod `Unschedulable`,
 	// for example due to unschedulable pod already occurred.
 	PodReasonUnschedulable = "Unschedulable"
 	// PodReasonSchedulable reason in PodScheduled PodCondition means that the scheduler

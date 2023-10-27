@@ -1,8 +1,4 @@
 {{- if .Values.custom.scheduler_enable }}
-{{ $scheduler_affinity := or .Values.custom.scheduler_affinity .Values.custom.default_affinity }}
-{{ $scheduler_tolerations := or .Values.custom.scheduler_tolerations .Values.custom.default_tolerations }}
-{{ $scheduler_sc := or .Values.custom.scheduler_sc .Values.custom.default_sc }}
-{{ $scheduler_ns := or .Values.custom.scheduler_ns .Values.custom.default_ns }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -54,7 +50,7 @@ rules:
     verbs: ["list", "watch"]
   - apiGroups: [""]
     resources: ["nodes"]
-    verbs: ["get","list", "watch","update","patch"]
+    verbs: ["list", "watch"]
   - apiGroups: [ "storage.k8s.io" ]
     resources: ["storageclasses", "csinodes", "csidrivers", "csistoragecapacities"]
     verbs: [ "list", "watch" ]
@@ -68,9 +64,6 @@ rules:
     resources: ["queues"]
     verbs: ["get", "list", "watch", "create", "delete"]
   - apiGroups: ["scheduling.incubator.k8s.io", "scheduling.volcano.sh"]
-    resources: ["queues/status"]
-    verbs: ["update"]
-  - apiGroups: ["scheduling.incubator.k8s.io", "scheduling.volcano.sh"]
     resources: ["podgroups"]
     verbs: ["list", "watch", "update"]
   - apiGroups: ["nodeinfo.volcano.sh"]
@@ -82,9 +75,7 @@ rules:
   - apiGroups: ["apps"]
     resources: ["daemonsets", "replicasets", "statefulsets"]
     verbs: ["list", "watch", "get"]
-  - apiGroups: ["coordination.k8s.io"]
-    resources: ["leases"]
-    verbs: ["get", "create", "update", "watch"]
+
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
@@ -107,11 +98,8 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     app: volcano-scheduler
-    {{- if .Values.custom.scheduler_labels }}
-    {{- toYaml .Values.custom.scheduler_labels | nindent 4 }}
-    {{- end }}
 spec:
-  replicas: {{ .Values.custom.scheduler_replicas }}
+  replicas: 1
   selector:
     matchLabels:
       app: volcano-scheduler
@@ -119,24 +107,7 @@ spec:
     metadata:
       labels:
         app: volcano-scheduler
-        {{- if .Values.custom.scheduler_podLabels }}
-        {{- toYaml .Values.custom.scheduler_podLabels | nindent 8 }}
-        {{- end }}
     spec:
-      {{- if $scheduler_tolerations }}
-      tolerations: {{- toYaml $scheduler_tolerations | nindent 8 }}
-      {{- end }}
-      {{- if $scheduler_ns }}
-      nodeSelector: {{- toYaml $scheduler_ns | nindent 8 }}
-      {{- end }}
-      {{- if $scheduler_affinity }}
-      affinity:
-        {{- toYaml $scheduler_affinity | nindent 8 }}
-      {{- end }}
-      {{- if $scheduler_sc }}
-      securityContext:
-        {{- toYaml $scheduler_sc | nindent 8 }}
-      {{- end }}
       serviceAccount: {{ .Release.Name }}-scheduler
       priorityClassName: system-cluster-critical
       {{- if .Values.basic.image_pull_secret }}
@@ -146,37 +117,21 @@ spec:
       containers:
         - name: {{ .Release.Name }}-scheduler
           image: {{.Values.basic.scheduler_image_name}}:{{.Values.basic.image_tag_version}}
-          {{- if .Values.custom.scheduler_resources }}
-          resources:
-          {{- toYaml .Values.custom.scheduler_resources | nindent 12 }}
-          {{- end }}
           args:
             - --logtostderr
             - --scheduler-conf=/volcano.scheduler/{{base .Values.basic.scheduler_config_file}}
             - --enable-healthz=true
             - --enable-metrics=true
-            - --leader-elect={{ .Values.custom.leader_elect_enable }}
-            {{- if .Values.custom.leader_elect_enable }}
-            - --lock-object-namespace={{ .Release.Namespace }}
-            {{- end }}
-            - -v=3
+            - -v=5
             - 2>&1
-          env:
-            - name: DEBUG_SOCKET_DIR
-              value: /tmp/klog-socks
-          imagePullPolicy: {{ .Values.basic.image_pull_policy }}
+          imagePullPolicy: "IfNotPresent"
           volumeMounts:
             - name: scheduler-config
               mountPath: /volcano.scheduler
-            - name: klog-sock
-              mountPath: /tmp/klog-socks
       volumes:
         - name: scheduler-config
           configMap:
             name: {{ .Release.Name }}-scheduler-configmap
-        - name: klog-sock
-          hostPath:
-            path: /tmp/klog-socks
 ---
 apiVersion: v1
 kind: Service
