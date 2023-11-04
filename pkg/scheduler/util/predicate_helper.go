@@ -39,7 +39,7 @@ func (ph *predicateHelper) PredicateNodes(task *api.TaskInfo, nodes []*api.NodeI
 	processedNodes := int32(0)
 
 	taskGroupid := taskGroupID(task)
-	nodeErrorCache, _ := ph.taskPredicateErrorCache[taskGroupid]
+	nodeErrorCache, taskFailedBefore := ph.taskPredicateErrorCache[taskGroupid]
 	if nodeErrorCache == nil {
 		nodeErrorCache = map[string]error{}
 	}
@@ -61,18 +61,18 @@ func (ph *predicateHelper) PredicateNodes(task *api.TaskInfo, nodes []*api.NodeI
 		//
 		// Check if the task had "predicate" failure before.
 		// And then check if the task failed to predict on this node before.
-		// if enableErrorCache && taskFailedBefore {
-		// 	errorLock.RLock()
-		// 	errC, ok := nodeErrorCache[node.Name]
-		// 	errorLock.RUnlock()
+		if enableErrorCache && taskFailedBefore {
+			errorLock.RLock()
+			errC, ok := nodeErrorCache[node.Name]
+			errorLock.RUnlock()
 
-		// 	if ok {
-		// 		errorLock.Lock()
-		// 		fe.SetNodeError(node.Name, errC)
-		// 		errorLock.Unlock()
-		// 		return
-		// 	}
-		// }
+			if ok {
+				errorLock.Lock()
+				fe.SetNodeError(node.Name, errC)
+				errorLock.Unlock()
+				return
+			}
+		}
 
 		// TODO (k82cn): Enable eCache for performance improvement.
 		if _, err := fn(task, node); err != nil {
@@ -113,8 +113,8 @@ func NewPredicateHelper() PredicateHelper {
 	return &predicateHelper{taskPredicateErrorCache: map[string]map[string]error{}}
 }
 
-type StatusSets []*api.Status
 
+type StatusSets []*api.Status
 func (s StatusSets) ContainsUnschedulable() bool {
 	for _, status := range s {
 		if status == nil {
@@ -126,7 +126,6 @@ func (s StatusSets) ContainsUnschedulable() bool {
 	}
 	return false
 }
-
 func (s StatusSets) ContainsUnschedulableAndUnresolvable() bool {
 	for _, status := range s {
 		if status == nil {
@@ -138,7 +137,6 @@ func (s StatusSets) ContainsUnschedulableAndUnresolvable() bool {
 	}
 	return false
 }
-
 func (s StatusSets) ContainsErrorSkipOrWait() bool {
 	for _, status := range s {
 		if status == nil {
@@ -150,7 +148,6 @@ func (s StatusSets) ContainsErrorSkipOrWait() bool {
 	}
 	return false
 }
-
 // Message return the message generated from StatusSets
 func (s StatusSets) Message() string {
 	if s == nil {
@@ -165,7 +162,6 @@ func (s StatusSets) Message() string {
 	}
 	return strings.Join(all, ",")
 }
-
 // Reasons return the reasons list
 func (s StatusSets) Reasons() []string {
 	if s == nil {

@@ -91,7 +91,7 @@ func (alloc *Action) Execute(ssn *framework.Session) {
 		jobsMap[job.Queue].Push(job)
 	}
 
-	klog.V(3).Infof("Try to allocate resource to %d Queues", len(jobsMap))
+	klog.V(5).Infof("Try to allocate resource to %d Queues", len(jobsMap))
 
 	pendingTasks := map[api.JobID]*util.PriorityQueue{}
 
@@ -125,11 +125,11 @@ func (alloc *Action) Execute(ssn *framework.Session) {
 		queue := queues.Pop().(*api.QueueInfo)
 
 		if ssn.Overused(queue) {
-			klog.V(3).Infof("Queue <%s> is overused, ignore it.", queue.Name)
+			klog.V(5).Infof("Queue <%s> is overused, ignore it.", queue.Name)
 			continue
 		}
 
-		klog.V(3).Infof("Try to allocate resource to Jobs in Queue <%s>", queue.Name)
+		klog.V(5).Infof("Try to allocate resource to Jobs in Queue <%s>", queue.Name)
 
 		jobs, found := jobsMap[queue.UID]
 		if !found || jobs.Empty() {
@@ -161,7 +161,7 @@ func (alloc *Action) Execute(ssn *framework.Session) {
 			continue
 		}
 
-		klog.V(3).Infof("Try to allocate resource to %d tasks of Job <%v/%v>",
+		klog.V(5).Infof("Try to allocate resource to %d tasks of Job <%v/%v>",
 			tasks.Len(), job.Namespace, job.Name)
 
 		stmt := framework.NewStatement(ssn)
@@ -170,14 +170,14 @@ func (alloc *Action) Execute(ssn *framework.Session) {
 			task := tasks.Pop().(*api.TaskInfo)
 
 			if !ssn.Allocatable(queue, task) {
-				klog.V(3).Infof("Queue <%s> is overused when considering task <%s>, ignore it.", queue.Name, task.Name)
+				klog.V(5).Infof("Queue <%s> is overused when considering task <%s>, ignore it.", queue.Name, task.Name)
 				continue
 			}
 
-			klog.V(3).Infof("There are <%d> nodes for Job <%v/%v>", len(ssn.Nodes), job.Namespace, job.Name)
+			klog.V(5).Infof("There are <%d> nodes for Job <%v/%v>", len(ssn.Nodes), job.Namespace, job.Name)
 
 			if err := ssn.PrePredicateFn(task); err != nil {
-				klog.V(3).Infof("PrePredicate for task %s/%s failed for: %v", task.Namespace, task.Name, err)
+				klog.V(5).Infof("PrePredicate for task %s/%s failed for: %v", task.Namespace, task.Name, err)
 				fitErrors := api.NewFitErrors()
 				for _, ni := range allNodes {
 					fitErrors.SetNodeError(ni.Name, err)
@@ -186,9 +186,9 @@ func (alloc *Action) Execute(ssn *framework.Session) {
 				break
 			}
 
-			predicateNodes, fitErrors := ph.PredicateNodes(task, allNodes, predicateFn, true)
+			predicateNodes, fitErrors := ph.PredicateNodes(task, allNodes, predicateFn, false)
 			if len(predicateNodes) == 0 {
-				klog.V(3).Infof("PredicateNodes for task %s/%s found: %v", task.Namespace, task.Name, fitErrors.Error())
+				klog.V(5).Infof("PredicateNodes for task %s/%s found: %v", task.Namespace, task.Name, fitErrors.Error())
 				job.NodesFitErrors[task.UID] = fitErrors
 				// Don't break the loop here. We need to perform this check for all tasks to ensure they have proper NodeFitErrors set (if applicable)
 				// so that the right pod condition is set for the cluster autoscaler.
@@ -245,7 +245,7 @@ func (alloc *Action) Execute(ssn *framework.Session) {
 
 			// Allocate idle resource to the task.
 			if task.InitResreq.LessEqual(bestNode.Idle, api.Zero) {
-				klog.V(3).Infof("Binding Task <%v/%v> to node <%v>",
+				klog.V(5).Infof("Binding Task <%v/%v> to node <%v>",
 					task.Namespace, task.Name, bestNode.Name)
 				if err := stmt.Allocate(task, bestNode); err != nil {
 					klog.Errorf("Failed to bind Task %v on %v in Session %v, err: %v",
@@ -255,12 +255,12 @@ func (alloc *Action) Execute(ssn *framework.Session) {
 					metrics.UpdateE2eSchedulingLastTimeByJob(job.Name, string(job.Queue), job.Namespace, time.Now())
 				}
 			} else {
-				klog.V(3).Infof("Predicates failed in allocate for task <%s/%s> on node <%s> with limited resources",
+				klog.V(5).Infof("Predicates failed in allocate for task <%s/%s> on node <%s> with limited resources",
 					task.Namespace, task.Name, bestNode.Name)
 
 				// Allocate releasing resource to the task if any.
 				if task.InitResreq.LessEqual(bestNode.FutureIdle(), api.Zero) {
-					klog.V(3).Infof("Pipelining Task <%v/%v> to node <%v> for <%v> on <%v>",
+					klog.V(5).Infof("Pipelining Task <%v/%v> to node <%v> for <%v> on <%v>",
 						task.Namespace, task.Name, bestNode.Name, task.InitResreq, bestNode.Releasing)
 					if err := stmt.Pipeline(task, bestNode.Name); err != nil {
 						klog.Errorf("Failed to pipeline Task %v on %v in Session %v for %v.",
