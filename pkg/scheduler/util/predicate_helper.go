@@ -39,7 +39,7 @@ func (ph *predicateHelper) PredicateNodes(task *api.TaskInfo, nodes []*api.NodeI
 	processedNodes := int32(0)
 
 	taskGroupid := taskGroupID(task)
-	nodeErrorCache, taskFailedBefore := ph.taskPredicateErrorCache[taskGroupid]
+	nodeErrorCache := ph.taskPredicateErrorCache[taskGroupid]
 	if nodeErrorCache == nil {
 		nodeErrorCache = map[string]error{}
 	}
@@ -61,18 +61,18 @@ func (ph *predicateHelper) PredicateNodes(task *api.TaskInfo, nodes []*api.NodeI
 		//
 		// Check if the task had "predicate" failure before.
 		// And then check if the task failed to predict on this node before.
-		if enableErrorCache && taskFailedBefore {
-			errorLock.RLock()
-			errC, ok := nodeErrorCache[node.Name]
-			errorLock.RUnlock()
+		// if enableErrorCache && taskFailedBefore {
+		// 	errorLock.RLock()
+		// 	errC, ok := nodeErrorCache[node.Name]
+		// 	errorLock.RUnlock()
 
-			if ok {
-				errorLock.Lock()
-				fe.SetNodeError(node.Name, errC)
-				errorLock.Unlock()
-				return
-			}
-		}
+		// 	if ok {
+		// 		errorLock.Lock()
+		// 		fe.SetNodeError(node.Name, errC)
+		// 		errorLock.Unlock()
+		// 		return
+		// 	}
+		// }
 
 		// TODO (k82cn): Enable eCache for performance improvement.
 		if _, err := fn(task, node); err != nil {
