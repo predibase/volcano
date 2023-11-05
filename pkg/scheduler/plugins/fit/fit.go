@@ -69,7 +69,7 @@ func (pp *fitPlugin) Name() string {
 func (pp *fitPlugin) OnSessionOpen(ssn *framework.Session) {
 	// Build attributes for Queues.
 	for _, job := range ssn.Jobs {
-		klog.V(4).Infof("Considering Job <%s/%s>.", job.Namespace, job.Name)
+		klog.V(5).Infof("Considering Job <%s/%s>.", job.Namespace, job.Name)
 		if _, found := pp.queueOpts[job.Queue]; !found {
 			queue := ssn.Queues[job.Queue]
 			attr := &queueAttr{
@@ -92,7 +92,7 @@ func (pp *fitPlugin) OnSessionOpen(ssn *framework.Session) {
 				}
 			}
 			pp.queueOpts[job.Queue] = attr
-			klog.V(4).Infof("Added Queue <%s> attributes.", job.Queue)
+			klog.V(5).Infof("Added Queue <%s> attributes.", job.Queue)
 		}
 
 		attr := pp.queueOpts[job.Queue]
@@ -146,6 +146,56 @@ func (pp *fitPlugin) OnSessionOpen(ssn *framework.Session) {
 		metrics.UpdateQueuePodGroupUnknownCount(attr.name, queue.Queue.Status.Unknown)
 	}
 
+	ssn.AddQueueOrderFn(pp.Name(), func(l, r interface{}) int {
+		lv := l.(*api.QueueInfo)
+		rv := r.(*api.QueueInfo)
+
+		if pp.queueOpts[lv.UID].share == pp.queueOpts[rv.UID].share {
+			return 0
+		}
+
+		if pp.queueOpts[lv.UID].share < pp.queueOpts[rv.UID].share {
+			return -1
+		}
+
+		return 1
+	})
+
+	ssn.AddReclaimableFn(pp.Name(), func(reclaimer *api.TaskInfo, reclaimees []*api.TaskInfo) ([]*api.TaskInfo, int) {
+		var victims []*api.TaskInfo
+		allocations := map[api.QueueID]*api.Resource{}
+
+		for _, reclaimee := range reclaimees {
+			job := ssn.Jobs[reclaimee.Job]
+			attr := pp.queueOpts[job.Queue]
+
+			if _, found := allocations[job.Queue]; !found {
+				allocations[job.Queue] = attr.allocated.Clone()
+			}
+			allocated := allocations[job.Queue]
+			if allocated.LessPartly(reclaimer.Resreq, api.Zero) {
+				klog.V(5).Infof("Failed to allocate resource for Task <%s/%s> in Queue <%s>, not enough resource.",
+					reclaimee.Namespace, reclaimee.Name, job.Queue)
+				continue
+			}
+		}
+		klog.V(5).Infof("Victims from proportion plugins are %+v", victims)
+		return victims, util.Permit
+	})
+
+	ssn.AddAllocatableFn(pp.Name(), func(queue *api.QueueInfo, candidate *api.TaskInfo) bool {
+		attr := pp.queueOpts[queue.UID]
+
+		free, _ := attr.capability.Diff(attr.allocated, api.Zero)
+		allocatable := candidate.Resreq.LessEqual(free, api.Zero)
+		if !allocatable {
+			klog.V(3).Infof("Queue <%v>: deserved <%v>, allocated <%v>; Candidate <%v>: resource request <%v>",
+				queue.Name, attr.capability, attr.allocated, candidate.Name, candidate.Resreq)
+		}
+
+		return allocatable
+	})
+
 	ssn.AddJobEnqueueableFn(pp.Name(), func(obj interface{}) int {
 		job := obj.(*api.JobInfo)
 		queueID := job.Queue
@@ -153,13 +203,13 @@ func (pp *fitPlugin) OnSessionOpen(ssn *framework.Session) {
 		queue := ssn.Queues[queueID]
 		// If no capability is set, always enqueue the job.
 		if attr.capability == nil {
-			klog.V(4).Infof("Capability of queue <%s> was not set, allow job <%s/%s> to Inqueue.",
+			klog.V(5).Infof("Capability of queue <%s> was not set, allow job <%s/%s> to Inqueue.",
 				queue.Name, job.Namespace, job.Name)
 			return util.Permit
 		}
 
 		if job.PodGroup.Spec.MinResources == nil {
-			klog.V(4).Infof("job %s MinResources is null.", job.Name)
+			klog.V(5).Infof("job %s MinResources is null.", job.Name)
 			return util.Permit
 		}
 		minReq := job.GetMinResources()
@@ -167,7 +217,16 @@ func (pp *fitPlugin) OnSessionOpen(ssn *framework.Session) {
 		klog.V(5).Infof("job %s min resource <%s>, queue %s capability <%s> allocated <%s> inqueue <%s> elastic <%s>",
 			job.Name, minReq.String(), queue.Name, attr.capability.String(), attr.allocated.String(), attr.inqueue.String(), attr.elastic.String())
 		// The queue resource quota limit has not reached
-		inqueue := minReq.Add(attr.allocated).Add(attr.inqueue).Sub(attr.elastic).LessEqual(attr.capability, api.Infinity)
+		r := minReq.Add(attr.allocated).Add(attr.inqueue).Sub(attr.elastic)
+		rr := attr.capability.Clone()
+
+		for name := range rr.ScalarResources {
+			if _, ok := r.ScalarResources[name]; !ok {
+				delete(rr.ScalarResources, name)
+			}
+		}
+
+		inqueue := r.LessEqual(rr, api.Infinity)
 		klog.V(5).Infof("job %s inqueue %v", job.Name, inqueue)
 		if inqueue {
 			attr.inqueue.Add(job.GetMinResources())
@@ -185,7 +244,7 @@ func (pp *fitPlugin) OnSessionOpen(ssn *framework.Session) {
 			attr.allocated.Add(event.Task.Resreq)
 			metrics.UpdateQueueAllocated(attr.name, attr.allocated.MilliCPU, attr.allocated.Memory)
 
-			klog.V(4).Infof("Fit AllocateFunc: task <%v/%v>, resreq <%v>,  share <%v>",
+			klog.V(5).Infof("Fit AllocateFunc: task <%v/%v>, resreq <%v>,  share <%v>",
 				event.Task.Namespace, event.Task.Name, event.Task.Resreq, attr.share)
 		},
 		DeallocateFunc: func(event *framework.Event) {
@@ -194,7 +253,7 @@ func (pp *fitPlugin) OnSessionOpen(ssn *framework.Session) {
 			attr.allocated.Sub(event.Task.Resreq)
 			metrics.UpdateQueueAllocated(attr.name, attr.allocated.MilliCPU, attr.allocated.Memory)
 
-			klog.V(4).Infof("Fit EvictFunc: task <%v/%v>, resreq <%v>,  share <%v>",
+			klog.V(5).Infof("Fit EvictFunc: task <%v/%v>, resreq <%v>,  share <%v>",
 				event.Task.Namespace, event.Task.Name, event.Task.Resreq, attr.share)
 		},
 	})
