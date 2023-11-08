@@ -188,8 +188,9 @@ func (alloc *Action) Execute(ssn *framework.Session) {
 
 			predicateNodes, fitErrors := ph.PredicateNodes(task, allNodes, predicateFn, true)
 			if len(predicateNodes) == 0 {
+				klog.V(3).Infof("PredicateNodes for task %s/%s found: %v", task.Namespace, task.Name, fitErrors.Error())
 				job.NodesFitErrors[task.UID] = fitErrors
-				break
+				continue
 			}
 
 			// Candidate nodes are divided into two gradients:
