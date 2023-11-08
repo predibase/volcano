@@ -21,7 +21,6 @@ import (
 	"k8s.io/klog/v2"
 
 	"volcano.sh/apis/pkg/apis/scheduling"
-	v1beta1 "volcano.sh/apis/pkg/apis/scheduling/v1beta1"
 	"volcano.sh/volcano/pkg/scheduler/api"
 	"volcano.sh/volcano/pkg/scheduler/framework"
 	"volcano.sh/volcano/pkg/scheduler/plugins/util"
@@ -99,7 +98,7 @@ func (op *overcommitPlugin) OnSessionOpen(ssn *framework.Session) {
 		// calculate inqueue resource for running jobs
 		// the judgement 'job.PodGroup.Status.Running >= job.PodGroup.Spec.MinMember' will work on cases such as the following condition:
 		// Considering a Spark job is completed(driver pod is completed) while the podgroup keeps running, the allocated resource will be reserved again if without the judgement.
-		if (job.PodGroup.Status.Phase == scheduling.PodGroupRunning || job.PodGroup.Status.Phase == v1beta1.PodGroupAllocated) &&
+		if (job.PodGroup.Status.Phase == scheduling.PodGroupRunning || job.PodGroup.Status.Phase == scheduling.PodGroupAllocated) &&
 			job.PodGroup.Spec.MinResources != nil &&
 			int32(util.CalculateAllocatedTaskNum(job)) >= job.PodGroup.Spec.MinMember {
 			inqueued := util.GetInqueueResource(job, job.Allocated)

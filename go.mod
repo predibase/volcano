@@ -40,7 +40,7 @@ require (
 	sigs.k8s.io/controller-runtime v0.13.0
 	sigs.k8s.io/yaml v1.3.0
 	stathat.com/c/consistent v1.0.0
-	volcano.sh/apis v1.8.1
+	volcano.sh/apis v1.8.1-1
 )
 
 require (
@@ -170,5 +170,5 @@ replace (
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.27.2
 	k8s.io/sample-cli-plugin => k8s.io/sample-cli-plugin v0.27.2
 	k8s.io/sample-controller => k8s.io/sample-controller v0.27.2
-	volcano.sh/apis => github.com/predibase/volcano-apis v1.8.1
+	volcano.sh/apis => github.com/predibase/volcano-apis v1.8.1-1
 )
