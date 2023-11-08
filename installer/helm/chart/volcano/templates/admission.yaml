@@ -16,11 +16,17 @@ kind: ServiceAccount
 metadata:
   name: {{ .Release.Name }}-admission
   namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: {{ .Release.Name }}-admission
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
 rules:
   - apiGroups: [""]
     resources: ["configmaps"]
@@ -53,6 +59,9 @@ kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: {{ .Release.Name }}-admission-role
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
 subjects:
   - kind: ServiceAccount
     name: {{ .Release.Name }}-admission
@@ -165,6 +174,10 @@ kind: Job
 metadata:
   name: {{ .Release.Name }}-admission-init
   namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
   labels:
     app: volcano-admission-init
     {{- if .Values.custom.admission_labels }}
